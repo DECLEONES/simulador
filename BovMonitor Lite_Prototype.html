@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BovMonitor Lite</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#98a0b3; --accent:#57d9a3; --accent-2:#60a5fa;
+      --glass: rgba(255,255,255,0.03); --glass-2: rgba(255,255,255,0.02);
+      --radius:14px; --maxw:1100px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071025 0%, #071827 100%);color:#e6eef8}
+    .app{max-width:var(--maxw);margin:28px auto;padding:20px;display:grid;grid-template-columns:320px 1fr;gap:18px}
+    .login-screen{width:100%;max-width:400px;margin:10vh auto;padding:20px;text-align:center}
+    .login-screen .logo{margin:0 auto 20px auto;}
+    .sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:14px;border:1px solid rgba(255,255,255,0.03)}
+    .brand{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#032;box-shadow:0 6px 18px rgba(0,0,0,0.45)}
+    .brand h1{font-size:16px;margin:0}
+    .brand p{margin:0;font-size:12px;color:var(--muted)}
+    .menu{margin-top:14px}
+    .menu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+    .menu button.active{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));color:#e6eef8}
+    .card{background:var(--card);padding:16px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.03)}
+    .main{min-height:70vh}
+    .btn{padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#012;cursor:pointer;font-weight:600}
+    .btn.full{width:100%}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:18px}
+    .list{display:flex;flex-direction:column;gap:12px}
+    .animal{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:var(--glass-2);cursor:pointer;border:1px solid rgba(255,255,255,0.02)}
+    .avatar{width:56px;height:56px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;font-weight:700}
+    .meta{flex:1}
+    .meta h4{margin:0;font-size:15px}
+    .meta p{margin:0;color:var(--muted);font-size:13px}
+    .pill{font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,0.25);}
+    .details{display:flex;flex-direction:column;gap:12px}
+    .timeline{max-height: 200px; overflow-y: auto; display:flex;flex-direction:column;gap:8px}
+    .event{padding:10px;border-radius:8px;background:linear-gradient(90deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)}
+    .small{font-size:12px;color:var(--muted)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center;padding:20px;z-index: 1500;}
+    .modal{width:100%;max-width:720px;background:linear-gradient(180deg,#061025,#071827);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:0;background:var(--glass);color:inherit}
+    .chart-wrap{height:180px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:10px}
+    canvas{width:100%;height:100%}
+    @media (max-width:980px){.app{grid-template-columns:1fr; padding:12px}.grid{grid-template-columns:1fr}.sidebar{order:2}.main{order:1}}
+    #notification-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+    .toast { padding: 12px 18px; border-radius: 8px; color: #fff; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.1); opacity: 0; transform: translateX(100%); transition: all 0.4s ease; }
+    .toast.show { opacity: 1; transform: translateX(0); }
+    .toast.success { background: linear-gradient(90deg, #10B981, #34D399); }
+    .toast.error { background: linear-gradient(90deg, #EF4444, #F87171); }
+    .toast.info { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+    #loader-overlay { position: fixed; inset: 0; z-index: 2000; background-color: rgba(2, 6, 23, 0.5); display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .spinner { width: 50px; height: 50px; border: 5px solid rgba(255, 255, 255, 0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .form-group { margin-bottom: 12px; text-align: left; position: relative; }
+    .form-error { font-size: 11px; color: #f87171; margin-top: 4px; display: none; }
+    input.invalid, select.invalid { border: 1px solid #f87171; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
+    .stat-card { background: var(--card); padding: 16px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.03); }
+    .stat-card h2 { margin: 0; font-size: 28px; color: var(--accent-2); }
+    .stat-card p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    .chart-card { background: var(--card); padding: 16px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.03); grid-column: 1 / -1; min-height: 300px; }
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .search{flex:1;display:flex;gap:8px}
+    .event-list { display:flex; flex-direction:column; gap: 12px; }
+    .event-card { display:flex; gap: 15px; background:var(--glass-2); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.02); }
+    .event-date { text-align: center; }
+    .event-date span { display: block; }
+    .event-day { font-size: 24px; font-weight: 600; color: var(--accent); }
+    .event-month { font-size: 12px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+  <div id="loader-overlay"><div class="spinner"></div></div>
+  <div id="notification-container"></div>
+
+  <div id="login-view" style="display: none;">
+    <div class="login-screen">
+      <div class="logo">BM</div><h1>Bem-vindo ao BovMonitor</h1>
+      <p class="small" style="margin-bottom:20px">Faça login para continuar</p>
+      <div class="form-group"><label>Email</label><input id="login-email" type="email" placeholder="seu@email.com" /></div>
+      <div class="form-group"><label>Senha</label><input id="login-password" type="password" /></div>
+      <p id="login-error" class="small" style="color: #f87171; display:none;"></p>
+      <div style="height:10px"></div><button class="btn full" id="btn-login">Entrar</button>
+    </div>
+  </div>
+
+  <div id="app-view" style="display: none;">
+    <div class="app">
+      <aside class="sidebar card">
+        <div class="brand"><div class="logo">BM</div><div><h1>BovMonitor Lite</h1><p>Gestão simples de rebanho</p></div></div>
+        <div style="margin-top:14px">
+          <div class="menu">
+            <button id="btn-menu-dashboard" class="active">Dashboard</button>
+            <button id="btn-menu-rebanho">Rebanho</button>
+            <button id="btn-menu-calendario">Calendário</button>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; gap:8px;">
+          <button class="btn" id="btn-logout" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:#f87171">Sair</button>
+        </div>
+      </aside>
+      <main class="main">
+        <div id="dashboard-view">
+          <h2 style="margin-top:0">Dashboard</h2>
+          <div class="dashboard-grid">
+            <div class="stat-card"><h2 id="stat-total">--</h2><p>Animais no Rebanho</p></div>
+            <div class="stat-card"><h2 id="stat-males">--</h2><p>Machos</p></div>
+            <div class="stat-card"><h2 id="stat-females">--</h2><p>Fêmeas</p></div>
+            <div class="chart-card"><h3>Animais por Categoria</h3><div style="height: 250px; position: relative;"><canvas id="categoryChart"></canvas></div></div>
+          </div>
+        </div>
+        <div id="rebanho-view" style="display: none;">
+          <div class="topbar">
+            <div class="search"><input id="search" placeholder="Pesquisar..." /></div>
+            <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="btn-add">+ Cadastrar Animal</button></div>
+          </div>
+          <div class="grid">
+            <section><div class="card list" id="list-area"></div></section>
+            <aside class="card details" id="detail-area">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><h3 id="detail-name">Selecione um animal</h3><p class="small" id="detail-meta">Ficha individual</p></div>
+                <div><button class="btn" id="btn-edit" style="display:none">Editar</button><button class="btn" id="btn-delete" style="display:none; background: #b91c1c;">Excluir</button></div>
+              </div>
+              <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+              <div style="display:flex;gap:8px"><input id="weight-input" placeholder="Registrar peso (kg)" /><button class="btn" id="btn-add-weight">Salvar</button></div>
+              <div style="margin-top:8px"><h4>Histórico de Peso</h4><div class="timeline" id="timeline"></div></div>
+            </aside>
+          </div>
+        </div>
+        <div id="calendario-view" style="display: none;">
+            <div class="topbar">
+                <h2 style="margin-top:0">Calendário de Eventos</h2>
+                <button class="btn" id="btn-add-event">+ Novo Evento</button>
+            </div>
+            <div class="card">
+                <div class="event-list" id="event-list-area"></div>
+            </div>
+        </div>
+      </main>
+    </div>
+    <div class="modal-backdrop" id="animal-modal">
+      <div class="modal">
+        <h3 id="animal-modal-title">Cadastrar Animal</h3><div style="height:10px"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nome / Identificação</label><input id="f-name" /><p class="form-error" id="f-name-error"></p></div>
+          <div class="form-group"><label>Sexo</label><select id="f-sex"><option>Macho</option><option>Fêmea</option></select></div>
+          <div class="form-group"><label>Data de Nascimento</label><input id="f-birth" type="date" /><p class="form-error" id="f-birth-error"></p></div>
+          <div class="form-group"><label>Categoria</label><select id="f-cat"><option>Recria</option><option>Engorda</option><option>Reprodução</option></select></div>
+          <div class="form-group"><label>Tag / Observação</label><input id="f-tag" /></div>
+        </div><div style="height:12px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" id="animal-modal-cancel" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)">Cancelar</button>
+          <button class="btn" id="animal-modal-save">Salvar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop" id="event-modal">
+      <div class="modal">
+        <h3 id="event-modal-title">Novo Evento</h3><div style="height:10px"></div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column: 1 / -1;"><label>Título do Evento</label><input id="e-title" /><p class="form-error" id="e-title-error"></p></div>
+          <div class="form-group"><label>Data</label><input id="e-date" type="date" /><p class="form-error" id="e-date-error"></p></div>
+          <div class="form-group"><label>Tipo</label><select id="e-type"><option>Sanidade</option><option>Manejo</option><option>Reprodução</option><option>Outro</option></select></div>
+          <div class="form-group"><label>Associar ao Animal (Opcional)</label><select id="e-animal-id"><option value="">Todo o rebanho</option></select></div>
+          <div class="form-group" style="grid-column: 1 / -1;"><label>Descrição</label><textarea id="e-description" rows="3"></textarea></div>
+        </div><div style="height:12px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" id="event-modal-cancel" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)">Cancelar</button>
+          <button class="btn" id="event-modal-save">Salvar Evento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const showLoader = () => $('#loader-overlay').style.display = 'flex';
+    const hideLoader = () => $('#loader-overlay').style.display = 'none';
+    const TOKEN_KEY = 'bovmonitor_token';
+    const USER_KEY = 'bovmonitor_user';
+    let state = { animals: [], events: [], selectedId: null, editingId: null, user: null, token: null };
+    const $ = (s) => document.querySelector(s);
+    const fmtDate = (d, type='short') => { if (!d) return 'Data inv.'; const date = new Date(d); const userTimezoneOffset = date.getTimezoneOffset() * 60000; const adjustedDate = new Date(date.getTime() + userTimezoneOffset); if(type==='day') return adjustedDate.getDate(); if(type==='month') return adjustedDate.toLocaleString('default', { month: 'short' }); return adjustedDate.toLocaleDateString(); };
+    function showToast(message, type = 'info') { const container = $('#notification-container'); const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.innerText = message; container.appendChild(toast); setTimeout(() => toast.classList.add('show'), 10); setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 4000); }
+    
+    function showMainView(viewId) {
+        ['dashboard-view', 'rebanho-view', 'calendario-view'].forEach(id => $(`#${id}`).style.display = 'none');
+        $(`#${viewId}`).style.display = 'block';
+        ['dashboard', 'rebanho', 'calendario'].forEach(id => $(`#btn-menu-${id}`).classList.remove('active'));
+        $(`#btn-menu-${viewId.split('-')[0]}`).classList.add('active');
+    }
+
+    function showView(viewId) { $('#login-view').style.display = 'none'; $('#app-view').style.display = 'none'; $(`#${viewId}`).style.display = 'block'; }
+    async function loginAPI(email, password) { showLoader(); try { const response = await fetch('http://localhost:3001/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }); if (!response.ok) { showToast('Email ou senha inválidos.', 'error'); return; } const data = await response.json(); localStorage.setItem(TOKEN_KEY, data.token); localStorage.setItem(USER_KEY, JSON.stringify(data.user)); initApp(); } catch (error) { showToast('Falha ao conectar.', 'error'); } finally { hideLoader(); } }
+    function logout() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); state = { animals: [], events: [], selectedId: null, editingId: null, user: null, token: null }; showView('login-view'); }
+    async function apiFetch(url, options = {}) { const token = state.token; if (!token) throw new Error("Não autenticado"); const defaultOptions = { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }; const response = await fetch(`http://localhost:3001/api${url}`, { ...defaultOptions, ...options }); if (response.status === 401) { logout(); throw new Error("Sessão expirada."); } if (!response.ok && response.status !== 204) throw new Error(`Falha na API: ${response.statusText}`); return response.status === 204 ? null : response.json(); }
+    async function loadFromAPI() { showLoader(); try { state.animals = await apiFetch('/animals'); renderAll(); } catch (error) { console.error(error); showToast(error.message, 'error'); } finally { hideLoader(); } }
+    async function createAnimalAPI(animalData) { showLoader(); try { await apiFetch('/animals', { method: 'POST', body: JSON.stringify(animalData) }); await loadFromAPI(); showToast('Animal cadastrado!', 'success'); return true; } catch (error) { showToast('Falha ao cadastrar.', 'error'); return false; } finally { hideLoader(); } }
+    async function updateAnimalAPI(id, animalData) { showLoader(); try { await apiFetch(`/animals/${id}`, { method: 'PUT', body: JSON.stringify(animalData) }); await loadFromAPI(); showToast('Animal atualizado!', 'success'); return true; } catch (error) { showToast('Falha ao atualizar.', 'error'); return false; } finally { hideLoader(); } }
+    async function deleteAnimalAPI(id) { showLoader(); try { await apiFetch(`/animals/${id}`, { method: 'DELETE' }); state.selectedId = null; await loadFromAPI(); showToast('Animal excluído.', 'info'); return true; } catch (error) { showToast('Falha ao excluir.', 'error'); return false; } finally { hideLoader(); } }
+    async function fetchWeightsForAnimal(animalId) { try { const weights = await apiFetch(`/animals/${animalId}/weights`); renderTimeline(weights); renderChart(weights); } catch (error) { console.error(error); $('#timeline').innerHTML = '<p>Não foi possível carregar o histórico.</p>'; } }
+    async function addWeightAPI(animalId, weightData) { showLoader(); try { await apiFetch(`/animals/${animalId}/weights`, { method: 'POST', body: JSON.stringify(weightData) }); await fetchWeightsForAnimal(animalId); showToast('Peso registrado!', 'success'); return true; } catch (error) { showToast('Falha ao registrar peso.', 'error'); return false; } finally { hideLoader(); } }
+    async function loadDashboardData() { showLoader(); try { const data = await apiFetch('/dashboard'); $('#stat-total').innerText = data.total; $('#stat-males').innerText = data.males; $('#stat-females').innerText = data.females; renderCategoryChart(data.byCategory); } catch(error) { showToast('Falha ao carregar dados do dashboard.', 'error'); } finally { hideLoader(); } }
+    async function loadEventsAPI() { showLoader(); try { state.events = await apiFetch('/events'); renderEventList(); } catch (error) { showToast('Falha ao carregar eventos.', 'error'); } finally { hideLoader(); } }
+    async function createEventAPI(eventData) { showLoader(); try { await apiFetch('/events', { method: 'POST', body: JSON.stringify(eventData) }); await loadEventsAPI(); showToast('Evento registrado!', 'success'); return true; } catch (error) { showToast('Falha ao registrar evento.', 'error'); return false; } finally { hideLoader(); } }
+    
+    function renderList(filter = '') { const area = $('#list-area'); area.innerHTML = ''; const list = state.animals.filter(a => (a.name + ' ' + (a.tag || '') + ' ' + a.id).toLowerCase().includes(filter.toLowerCase())); list.forEach(a => { const el = document.createElement('div'); el.className = 'animal'; el.dataset.id = a.id; el.innerHTML = `<div class="avatar">${a.name.slice(0, 2).toUpperCase()}</div><div class="meta"><h4>${a.name} <span style="color:var(--muted);font-size:12px">• ${a.category}</span></h4><p class="small">${a.tag || ''} — Nasc: ${fmtDate(a.birth_date)}</p></div><div style="text-align:right"><div class="pill">-- kg</div><div class="small">-- eventos</div></div>`; el.addEventListener('click', () => selectAnimal(a.id)); area.appendChild(el); }); }
+    function selectAnimal(id) { const a = state.animals.find(x => x.id === id); if (!a) return; state.selectedId = id; $('#detail-name').innerText = a.name + ' — ' + a.tag; $('#detail-meta').innerText = `Nasc: ${fmtDate(a.birth_date)} • ${a.sex} • ${a.category}`; const btnEdit = $('#btn-edit'), btnDelete = $('#btn-delete'); btnEdit.style.display = 'inline-block'; btnDelete.style.display = 'inline-block'; const newBtnEdit = btnEdit.cloneNode(true); btnEdit.parentNode.replaceChild(newBtnEdit, btnEdit); setupEditButton(newBtnEdit, a); const newBtnDelete = btnDelete.cloneNode(true); btnDelete.parentNode.replaceChild(newBtnDelete, btnDelete); newBtnDelete.addEventListener('click', () => { if (confirm(`Tem certeza que deseja excluir "${a.name}"?`)) deleteAnimalAPI(a.id); }); $('#timeline').innerHTML = '<p class="small">Carregando histórico...</p>'; renderChart([]); fetchWeightsForAnimal(a.id); }
+    let weightChartInstance = null; function renderChart(weights = []) { const canvas = document.getElementById('weightChart'); const ctx = canvas.getContext('2d'); if(weightChartInstance) weightChartInstance.destroy(); if (weights.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#9fb4c9'; ctx.font = '14px Inter'; ctx.fillText('Sem dados para exibir o gráfico.', 12, 24); return; } const labels = weights.map(w => fmtDate(w.date)).reverse(); const dataPoints = weights.map(w => w.weight).reverse(); weightChartInstance = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: dataPoints, borderColor: 'var(--accent)', backgroundColor: 'rgba(87, 217, 163, 0.2)', borderWidth: 2, fill: true, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false }, }, plugins: { legend: { display: false } } } }); }
+    let categoryChartInstance = null; function renderCategoryChart(categoryData = []) { const canvas = document.getElementById('categoryChart'); const ctx = canvas.getContext('2d'); if(categoryChartInstance) categoryChartInstance.destroy(); const labels = categoryData.map(c => c.category); const dataPoints = categoryData.map(c => c.count); categoryChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ label: 'Animais', data: dataPoints, backgroundColor: ['#60A5FA', '#34D399', '#FBBF24', '#F87171'], hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } }); }
+    function renderAll() { renderList($('#search').value || ''); if (state.selectedId) { const stillExists = state.animals.find(a => a.id === state.selectedId); if (stillExists) selectAnimal(stillExists.id); else { $('#detail-name').innerText = 'Selecione um animal'; $('#detail-meta').innerText = 'Ficha individual'; $('#btn-edit').style.display = 'none'; $('#btn-delete').style.display = 'none'; } } }
+    function renderTimeline(weights = []) { const area = $('#timeline'); area.innerHTML = ''; if (weights.length === 0) { area.innerHTML = '<p class="small">Nenhum registro de peso.</p>'; return; } weights.forEach(w => { const el = document.createElement('div'); el.className = 'event'; el.innerHTML = `<strong>${w.weight} kg</strong> - <span class="small">${fmtDate(w.date)}</span>`; area.appendChild(el); }); }
+    function renderEventList() { const area = $('#event-list-area'); area.innerHTML = ''; if(state.events.length === 0) { area.innerHTML = '<p class="small">Nenhum evento agendado.</p>'; return; } state.events.forEach(e => { const el = document.createElement('div'); el.className = 'event-card'; el.innerHTML = `<div class="event-date"><span class="event-day">${fmtDate(e.event_date, 'day')}</span><span class="event-month">${fmtDate(e.event_date, 'month')}</span></div><div><h4>${e.title}</h4><p class="small">${e.description || ''}</p><p class="small"><b>Animal:</b> ${e.animal_name || 'Todo o rebanho'} • <b>Tipo:</b> ${e.type}</p></div>`; area.appendChild(el); }); }
+    function setupEditButton(button, animal) { button.addEventListener('click', () => { state.editingId = animal.id; $('#animal-modal-title').innerText = 'Editar Animal'; $('#f-name').value = animal.name; $('#f-sex').value = animal.sex; $('#f-birth').value = animal.birth_date ? new Date(animal.birth_date).toISOString().split('T')[0] : ''; $('#f-cat').value = animal.category; $('#f-tag').value = animal.tag; $('#animal-modal').style.display = 'flex'; }); }
+    function clearValidationErrors(prefix='f-') { document.querySelectorAll('.form-error').forEach(el => { if(el.id.startsWith(prefix)) el.style.display = 'none'; }); document.querySelectorAll('.form-group input, .form-group select').forEach(el => { if(el.id.startsWith(prefix)) el.classList.remove('invalid'); }); }
+    function validateAnimalForm() { clearValidationErrors('f-'); let isValid = true; if (!$('#f-name').value.trim()) { $('#f-name').classList.add('invalid'); $('#f-name-error').innerText = 'Nome é obrigatório.'; $('#f-name-error').style.display = 'block'; isValid = false; } const birthDate = $('#f-birth').value; if (birthDate) { const today = new Date(); const selectedDate = new Date(birthDate); today.setHours(0,0,0,0); if(selectedDate > today) { $('#f-birth').classList.add('invalid'); $('#f-birth-error').innerText = 'Data não pode ser no futuro.'; $('#f-birth-error').style.display = 'block'; isValid = false; } } return isValid; }
+    function validateEventForm() { clearValidationErrors('e-'); let isValid = true; if (!$('#e-title').value.trim()) { $('#e-title').classList.add('invalid'); $('#e-title-error').innerText = 'Título é obrigatório.'; $('#e-title-error').style.display = 'block'; isValid = false; } if (!$('#e-date').value) { $('#e-date').classList.add('invalid'); $('#e-date-error').innerText = 'Data é obrigatória.'; $('#e-date-error').style.display = 'block'; isValid = false; } return isValid; }
+    
+    $('#btn-login').addEventListener('click', () => { loginAPI($('#login-email').value, $('#login-password').value); });
+    $('#btn-logout').addEventListener('click', logout);
+    $('#btn-menu-dashboard').addEventListener('click', () => { showMainView('dashboard-view'); loadDashboardData(); });
+    $('#btn-menu-rebanho').addEventListener('click', () => showMainView('rebanho-view'));
+    $('#btn-menu-calendario').addEventListener('click', () => { showMainView('calendario-view'); loadEventsAPI(); });
+    
+    $('#btn-add').addEventListener('click', () => { state.editingId = null; clearValidationErrors('f-'); $('#animal-modal-title').innerText = 'Cadastrar Animal'; $('#f-name').value = ''; $('#f-sex').value = 'Macho'; $('#f-birth').value = ''; $('#f-cat').value = 'Recria'; $('#f-tag').value = ''; $('#animal-modal').style.display = 'flex'; });
+    $('#animal-modal-cancel').addEventListener('click', () => { $('#animal-modal').style.display = 'none'; });
+    $('#animal-modal-save').addEventListener('click', async () => { if (!validateAnimalForm()) return; const animalData = { name: $('#f-name').value.trim(), sex: $('#f-sex').value, birth_date: $('#f-birth').value || null, category: $('#f-cat').value, tag: $('#f-tag').value.trim() }; let success = false; if (state.editingId) success = await updateAnimalAPI(state.editingId, animalData); else success = await createAnimalAPI(animalData); if (success) { $('#animal-modal').style.display = 'none'; if (state.editingId) { const id = state.editingId; state.editingId = null; selectAnimal(id); } } });
+    
+    $('#btn-add-event').addEventListener('click', () => { clearValidationErrors('e-'); const animalSelect = $('#e-animal-id'); animalSelect.innerHTML = '<option value="">Todo o rebanho</option>'; state.animals.forEach(a => { const option = document.createElement('option'); option.value = a.id; option.innerText = a.name; animalSelect.appendChild(option); }); $('#event-modal').style.display = 'flex'; });
+    $('#event-modal-cancel').addEventListener('click', () => { $('#event-modal').style.display = 'none'; });
+    $('#event-modal-save').addEventListener('click', async () => { if(!validateEventForm()) return; const eventData = { title: $('#e-title').value.trim(), description: $('#e-description').value.trim(), event_date: $('#e-date').value, type: $('#e-type').value, animal_id: $('#e-animal-id').value || null }; const success = await createEventAPI(eventData); if(success) $('#event-modal').style.display = 'none'; });
+    
+    $('#search').addEventListener('input', (e) => renderList(e.target.value));
+    $('#btn-add-weight').addEventListener('click', async () => { if (!state.selectedId) return showToast('Selecione um animal.', 'info'); const weightInput = $('#weight-input'); const weight = parseFloat(weightInput.value); if (!weight || weight <= 0) return showToast('Insira um peso válido.', 'error'); const weightData = { weight: weight, date: new Date().toISOString().split('T')[0] }; const success = await addWeightAPI(state.selectedId, weightData); if(success) weightInput.value = ''; });
+
+    async function initApp() {
+        state.token = localStorage.getItem(TOKEN_KEY);
+        const userJSON = localStorage.getItem(USER_KEY);
+        if (state.token && userJSON) {
+            state.user = JSON.parse(userJSON);
+            showView('app-view');
+            showMainView('dashboard-view');
+            await loadDashboardData();
+            await loadFromAPI();
+        } else {
+            showView('login-view');
+        }
+    }
+    
+    initApp();
+  </script>
+</body>
+</html>
